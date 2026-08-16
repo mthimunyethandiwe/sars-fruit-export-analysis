@@ -18,6 +18,13 @@ CREATE TABLE IF NOT EXISTS raw_exports (
 );
 """
 
+CREATE_LOADED_FILES_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS loaded_files (
+    filename TEXT PRIMARY KEY,
+    loaded_at TEXT
+);
+"""
+
 
 def create_connection():
     conn = sqlite3.connect(DB_PATH)
@@ -28,6 +35,7 @@ def create_table():
     conn = create_connection()
     cursor = conn.cursor()
     cursor.execute(CREATE_TABLE_SQL)
+    cursor.execute(CREATE_LOADED_FILES_TABLE_SQL)
     conn.commit()
     conn.close()
 
@@ -44,13 +52,35 @@ def load_csv_to_db(csv_path):
     print(f"Loaded {len(df)} rows from {csv_path.name}")
 
 def load_all_csvs():
+    conn = create_connection()
     csv_files = RAW_DATA_DIR.glob("*.csv")
+
     for csv_path in csv_files:
-        load_csv_to_db(csv_path)
+        filename = csv_path.name
+
+        if is_already_loaded(filename, conn):
+            print(f"{filename} already loaded, skipping....")
+            continue
+        else:
+            load_csv_to_db(csv_path)
+            mark_as_loaded(filename, conn)
+
+    conn.close()
+
+def is_already_loaded(filename, conn):
+    cursor = conn.cursor()
+    cursor.execute("SELECT 1 FROM loaded_files WHERE filename = ?", (filename,))
+    result = cursor.fetchone()
+    return result is not None
 
 
-
-
+def mark_as_loaded(filename, conn):
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO loaded_files (filename, loaded_at) VALUES (?, datetime('now'))",
+        (filename,)
+    )
+    conn.commit()
     
 
 if __name__ == "__main__":
