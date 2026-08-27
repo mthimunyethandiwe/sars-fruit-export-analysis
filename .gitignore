@@ -2,3 +2,5 @@ exports/
 __pycache__/
 *.pyc
 .pytest_cache/
+data/validation_log.txt
+data/exports.db
